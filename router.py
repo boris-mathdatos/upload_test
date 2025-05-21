@@ -1,4 +1,5 @@
 from fastapi.responses import StreamingResponse
+from fastapi import UploadFile, File
 from fastapi import (APIRouter,
                      Body,
                      Depends,
@@ -36,46 +37,36 @@ async def chat(data: dict = Body(...), header: str = Header(default = "default")
 os.makedirs("data", exist_ok=True)
 
 @router.post("/uploads_and_clean")
-def upload_and_clean(data: dict = Body(...)):
+async def upload_and_clean(file: UploadFile = File(...)):
     try:
         # Validación adicional del nombre de archivo
-        if not data.filename or "/" in data.filename or ".." in data.filename:
+        if not file.filename or "/" in file.filename or ".." in file.filename:
             raise HTTPException(
                 status_code=400,
                 detail="Nombre de archivo inválido o potencial path traversal"
             )
 
-        # Decodificar contenido base64
-        try:
-            file_data = base64.b64decode(data.file_content)
-        except (base64.binascii.Error, TypeError):
-            raise HTTPException(
-                status_code=400,
-                detail="Contenido de archivo no válido (debe ser base64 válido)"
-            )
-
-        # Construir ruta segura
-        file_path = os.path.join("data", data.filename)
+        
+        
+        file_data = await file.read()
         
         # Guardar archivo
+        
+        file_path = os.path.join("data", file.filename)
         with open(file_path, "wb") as f:
             f.write(file_data)
 
-        # === Aquí iría tu lógica de limpieza/processing ===
-        # Por ejemplo:
-        # 1. Limpiar metadatos
-        # 2. Verificar tipo de archivo
-        # 3. Escanear virus
-        # 4. Procesamiento específico
-        # clean_file(file_path)
+        # ... (lógica de procesamiento)
         
         return {
             "status": "success",
-            "message": "Archivo guardado y procesado perris no me la conteis",
-            "filename": data.filename,
-            "file_size": len(file_data),
-            "clean_operations": []  # Puedes añadir detalles del cleaning
+            "filename": file.filename,
+            "file_size": len(file_data)
         }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))# Guardar archivo
+        
 
     except HTTPException as he:
         raise he
